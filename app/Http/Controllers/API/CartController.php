@@ -15,8 +15,41 @@ class CartController extends Controller
     public function index(Request $request)
     {
         $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
-        $cart->load('items.medicine');
-        return response()->json($cart);
+        $cart->load('items.medicine','items.pharmacy');
+
+        // تنسيق البيانات لإضافة اسم الصيدلية بشكل واضح
+        $formattedCart = [
+            'id' => $cart->id,
+            'user_id' => $cart->user_id,
+            'items' => $cart->items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'medicine_id' => $item->medicine_id,
+                    'pharmacy_id' => $item->pharmacy_id,
+                    'quantity' => $item->quantity,
+                    'price_at_time' => $item->price_at_time,
+                    'medicine' => $item->medicine ? [
+                        'id' => $item->medicine->id,
+                        'name' => $item->medicine->name,
+                        'description' => $item->medicine->description,
+                        'image' => $item->medicine->image,
+                    ] : null,
+                    'pharmacy' => $item->pharmacy ? [
+                        'id' => $item->pharmacy->id,
+                        'name' => $item->pharmacy->pharmacy_name,
+                        'address' => $item->pharmacy->address,
+                    ] : null,
+                    'pharmacy_name' => $item->pharmacy ? $item->pharmacy->pharmacy_name : null, // 👈 إضافة مباشرة
+                ];
+            }),
+            'total_items' => $cart->items->count(),
+            'total_quantity' => $cart->items->sum('quantity'),
+            'total_price' => $cart->items->sum(function($item) {
+                return $item->quantity * $item->price_at_time;
+            }),
+        ];
+
+        return response()->json($formattedCart);
     }
 
     // إضافة منتج للسلة أو زيادة الكمية

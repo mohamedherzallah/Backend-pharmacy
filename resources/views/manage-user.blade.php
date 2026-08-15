@@ -1220,7 +1220,7 @@ License: For each use you must have a valid license purchased only from above li
                                                 <td>{{ $user->email }}</td>
                                                 <td>{{ $user->phone }}</td>
                                                 <td>{{ ucfirst($user->role) }}</td>
-                                                <td>
+
                                                 <td>
                                                     <div class="form-check form-switch">
                                                         <input class="form-check-input status-toggle" type="checkbox"
@@ -1234,7 +1234,7 @@ License: For each use you must have a valid license purchased only from above li
                                                     </div>
                                                 </td>
 
-                                                </td>
+
 
                                                 <td class="text-end">
                                                     <a href="#" class="btn btn-sm btn-light">Edit</a>

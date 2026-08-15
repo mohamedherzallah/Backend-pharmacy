@@ -16,6 +16,33 @@ class MedicineController extends Controller
      * Display a listing of the resource.
      */
     // كل الأدوية (قد تحتاج pagination)
+//    public function index(Request $request)
+//    {
+//        $query = Medicine::query();
+//
+//        // فلترة حسب الفئة
+//        if ($request->has('category_id')) {
+//            $query->where('category_id', $request->category_id);
+//        }
+//
+//        // البحث الجزئي مع تجاهل الحالة
+//        if ($request->has('q')) {
+//            $query->search($request->q);
+//        }
+//
+//        $medicines = $query->paginate(20);
+//
+//        return response()->json([
+//            'status' => 'success',
+//            'data' => MedicineResource::collection($medicines),
+//            'pagination' => [
+//                'total' => $medicines->total(),
+//                'per_page' => $medicines->perPage(),
+//                'current_page' => $medicines->currentPage(),
+//                'last_page' => $medicines->lastPage(),
+//            ]
+//        ]);
+//    }
     public function index(Request $request)
     {
         $query = Medicine::query();
@@ -25,16 +52,62 @@ class MedicineController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        // البحث الجزئي مع تجاهل الحالة
+        // البحث الجزئي
         if ($request->has('q')) {
             $query->search($request->q);
         }
 
+        // جلب الأدوية مع الصيدليات
+        $query->with(['pharmacies' => function($q) {
+            $q->where('pharmacies.is_approved', true)
+                ->where('pharmacy_medicines.stock', '>', 0)
+                ->select('pharmacies.id', 'pharmacies.pharmacy_name as name', 'pharmacies.address')
+                ->withPivot('price', 'stock');
+        }]);
+
         $medicines = $query->paginate(20);
+
+        // تنسيق البيانات مع إضافة أرخص صيدلية
+        $formattedMedicines = $medicines->map(function($medicine) {
+            $cheapestPharmacy = null;
+            $cheapestPrice = null;
+            $cheapestPharmacyId = null;
+
+
+            if ($medicine->pharmacies && $medicine->pharmacies->count() > 0) {
+                // إيجاد أرخص صيدلية
+                $cheapestPharmacy = $medicine->pharmacies->sortBy('pivot.price')->first();
+                $cheapestPrice = $cheapestPharmacy->pivot->price;
+                $cheapestPharmacyId = $cheapestPharmacy->id; // 👈 أضف هذا
+            }
+
+            return [
+                'id' => $medicine->id,
+                'name' => $medicine->name,
+                'description' => $medicine->description,
+                'image' => $medicine->image,
+                'category' => $medicine->category ? [
+                    'id' => $medicine->category->id,
+                    'name' => $medicine->category->name
+                ] : null,
+                'pharmacies' => $medicine->pharmacies->map(function($pharmacy) {
+                    return [
+                        'id' => $pharmacy->id,
+                        'name' => $pharmacy->name,
+                        'price' => $pharmacy->pivot->price,
+                        'stock' => $pharmacy->pivot->stock
+                    ];
+                }),
+                'cheapest_price' => $cheapestPrice,
+                'cheapest_pharmacy_name' => $cheapestPharmacy ? $cheapestPharmacy->name : null,
+                'cheapest_pharmacy_id' => $cheapestPharmacyId, // 👈 أضف هذا
+                'has_pharmacies' => $medicine->pharmacies->count() > 0
+            ];
+        });
 
         return response()->json([
             'status' => 'success',
-            'data' => MedicineResource::collection($medicines),
+            'data' => $formattedMedicines,
             'pagination' => [
                 'total' => $medicines->total(),
                 'per_page' => $medicines->perPage(),
@@ -66,6 +139,44 @@ class MedicineController extends Controller
         $medicines = $pharmacy->medicines()->paginate(20);
         return MedicineResource::collection($medicines);
     }
+
+    /**
+     * عرض الصيدليات التي يتوفر فيها دواء معين
+     * GET /api/medicines/{id}/pharmacies
+     */
+    public function getPharmacies($id)
+    {
+        $medicine = Medicine::findOrFail($id);
+
+        $pharmacies = $medicine->pharmacies()
+            ->where('pharmacies.is_approved', true)
+            ->where('pharmacy_medicines.stock', '>', 0)
+            ->select(
+                'pharmacies.id',
+                'pharmacies.pharmacy_name as name',
+                'pharmacies.address',
+                'pharmacies.logo'
+            )
+            ->withPivot('price', 'stock')
+            ->get()
+            ->map(function($pharmacy) {
+                return [
+                    'id' => $pharmacy->id,
+                    'name' => $pharmacy->name,
+                    'address' => $pharmacy->address,
+                    'logo' => $pharmacy->logo,
+                    'price' => $pharmacy->pivot->price,
+                    'stock' => $pharmacy->pivot->stock,
+                    'is_available' => $pharmacy->pivot->stock > 0
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $pharmacies
+        ]);
+    }
+
     /**
      * Update the specified resource in storage.
      */

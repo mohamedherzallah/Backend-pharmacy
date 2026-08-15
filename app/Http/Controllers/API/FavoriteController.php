@@ -7,6 +7,7 @@ use App\Models\Favorite;
 use App\Models\Medicine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class FavoriteController extends Controller
 {
@@ -15,35 +16,55 @@ class FavoriteController extends Controller
      */
     public function index()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        // جلب المفضلات مع معلومات الدواء
-        $favorites = $user->favorites()->with(['medicine.category', 'medicine.pharmacy'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المستخدم غير مسجل الدخول'
+                ], 401);
+            }
 
-        // تنسيق البيانات
-        $formattedFavorites = $favorites->map(function ($favorite) {
-            return [
-                'id' => $favorite->id,
-                'medicine' => [
-                    'id' => $favorite->medicine->id,
-                    'name' => $favorite->medicine->name,
-                    'description' => $favorite->medicine->description,
-                    'price' => $favorite->medicine->price,
-                    'image' => $favorite->medicine->image,
-                    'category' => $favorite->medicine->category->name ?? null,
-                    'pharmacy' => $favorite->medicine->pharmacy->name ?? null
-                ],
-                'added_at' => $favorite->created_at
-            ];
-        });
+            // جلب المفضلات مع معلومات الدواء
+            $favorites = $user->favorites()
+                ->with(['medicine.category']) // أزلنا medicine.pharmacy لأنها غير موجودة
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'count' => $favorites->count(),
-            'data' => $formattedFavorites
-        ]);
+            // تنسيق البيانات
+            $formattedFavorites = $favorites->map(function ($favorite) {
+                // الحصول على أول صيدلية للدواء (إذا وجدت)
+                $firstPharmacy = $favorite->medicine->pharmacies->first();
+
+                return [
+                    'id' => $favorite->id,
+                    'medicine' => [
+                        'id' => $favorite->medicine->id,
+                        'name' => $favorite->medicine->name,
+                        'description' => $favorite->medicine->description,
+                        'price' => $firstPharmacy ? $firstPharmacy->pivot->price : null,
+                        'image' => $favorite->medicine->image,
+                        'category' => $favorite->medicine->category->name ?? null,
+                        'pharmacy' => $firstPharmacy ? $firstPharmacy->pharmacy_name : null
+                    ],
+                    'added_at' => $favorite->created_at
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'count' => $favorites->count(),
+                'data' => $formattedFavorites
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in favorites index: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ في تحميل المفضلة: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -51,51 +72,71 @@ class FavoriteController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'medicine_id' => 'required|exists:medicines,id'
-        ]);
+        try {
+            $request->validate([
+                'medicine_id' => 'required|exists:medicines,id'
+            ]);
 
-        $user = Auth::user();
-        $medicineId = $request->medicine_id;
+            $user = Auth::user();
 
-        // التحقق إذا كان الدواء موجود بالفعل في المفضلة
-        $existingFavorite = $user->favorites()
-            ->where('medicine_id', $medicineId)
-            ->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المستخدم غير مسجل الدخول'
+                ], 401);
+            }
 
-        if ($existingFavorite) {
+            $medicineId = $request->medicine_id;
+
+            // التحقق إذا كان الدواء موجود بالفعل في المفضلة
+            $existingFavorite = $user->favorites()
+                ->where('medicine_id', $medicineId)
+                ->first();
+
+            if ($existingFavorite) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الدواء موجود بالفعل في المفضلة'
+                ], 400);
+            }
+
+            // التحقق من وجود الدواء
+            $medicine = Medicine::find($medicineId);
+            if (!$medicine) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الدواء غير موجود'
+                ], 404);
+            }
+
+            // إضافة للمفضلة
+            $favorite = $user->favorites()->create([
+                'medicine_id' => $medicineId
+            ]);
+
+            // الحصول على أول صيدلية للدواء
+            $firstPharmacy = $medicine->pharmacies->first();
+
             return response()->json([
-                'success' => false,
-                'message' => 'الدواء موجود بالفعل في المفضلة'
-            ], 400);
-        }
-
-        // التحقق من وجود الدواء
-        $medicine = Medicine::find($medicineId);
-        if (!$medicine) {
-            return response()->json([
-                'success' => false,
-                'message' => 'الدواء غير موجود'
-            ], 404);
-        }
-
-        // إضافة للمفضلة
-        $favorite = $user->favorites()->create([
-            'medicine_id' => $medicineId
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم إضافة الدواء إلى المفضلة',
-            'data' => [
-                'id' => $favorite->id,
-                'medicine' => [
-                    'id' => $medicine->id,
-                    'name' => $medicine->name,
-                    'price' => $medicine->price
+                'success' => true,
+                'message' => 'تم إضافة الدواء إلى المفضلة',
+                'data' => [
+                    'id' => $favorite->id,
+                    'medicine' => [
+                        'id' => $medicine->id,
+                        'name' => $medicine->name,
+                        'price' => $firstPharmacy ? $firstPharmacy->pivot->price : null
+                    ]
                 ]
-            ]
-        ], 201);
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Error in favorites store: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ في إضافة المفضلة: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -103,30 +144,43 @@ class FavoriteController extends Controller
      */
     public function destroy($id)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        // البحث باستخدام medicine_id أو favorite_id
-        $favorite = $user->favorites()
-            ->where(function ($query) use ($id) {
-                $query->where('id', $id)
-                    ->orWhere('medicine_id', $id);
-            })
-            ->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المستخدم غير مسجل الدخول'
+                ], 401);
+            }
 
-        if (!$favorite) {
+            // البحث باستخدام medicine_id
+            $favorite = $user->favorites()
+                ->where('medicine_id', $id)
+                ->first();
+
+            if (!$favorite) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الدواء غير موجود في المفضلة'
+                ], 404);
+            }
+
+            $medicineName = $favorite->medicine->name ?? 'الدواء';
+            $favorite->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "تم إزالة '$medicineName' من المفضلة"
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in favorites destroy: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'العنوان غير موجود في المفضلة'
-            ], 404);
+                'message' => 'حدث خطأ في إزالة المفضلة'
+            ], 500);
         }
-
-        $medicineName = $favorite->medicine->name;
-        $favorite->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => "تم إزالة '$medicineName' من المفضلة"
-        ]);
     }
 
     /**
@@ -134,15 +188,31 @@ class FavoriteController extends Controller
      */
     public function check($medicineId)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        $isFavorite = $user->favorites()
-            ->where('medicine_id', $medicineId)
-            ->exists();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المستخدم غير مسجل الدخول'
+                ], 401);
+            }
 
-        return response()->json([
-            'success' => true,
-            'is_favorite' => $isFavorite
-        ]);
+            $isFavorite = $user->favorites()
+                ->where('medicine_id', $medicineId)
+                ->exists();
+
+            return response()->json([
+                'success' => true,
+                'is_favorite' => $isFavorite
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in favorites check: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ في التحقق من المفضلة'
+            ], 500);
+        }
     }
 }

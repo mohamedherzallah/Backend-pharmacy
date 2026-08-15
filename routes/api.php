@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\{AuthController,
+use App\Http\Controllers\API\{AddressController,
+    AuthController,
     CategoryController,
     CustomerMedicineController,
     MedicineController,
@@ -15,8 +16,8 @@ use App\Http\Controllers\API\{AuthController,
     MessageController,
     UserController,
     PaymentController,
-    ProfileController};
-
+    ProfileController,
+    FavoriteController};
 /*
 |--------------------------------------------------------------------------
 | Auth Routes (Public)
@@ -54,6 +55,12 @@ Route::get('medicines', [MedicineController::class,'index']);
 Route::get('medicines/{id}', [MedicineController::class,'show']);
 Route::get('pharmacies/{id}/medicines', [MedicineController::class,'byPharmacy']);//??????
 
+Route::get('pharmacies/{id}', [PharmacyController::class, 'show']);
+
+
+Route::get('medicines/{id}/pharmacies', [MedicineController::class, 'getPharmacies']);
+
+
 Route::get('pharmacies', [PharmacyController::class,'index']);
 Route::get('pharmacy/{id}', [PharmacyController::class,'show']);
 
@@ -72,7 +79,11 @@ Route::post('payment/pay', [PaymentController::class, 'pay']);
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-
+        // ========== Favorites Routes ==========
+        Route::get('favorites', [FavoriteController::class, 'index']);                      // عرض جميع المفضلات
+        Route::post('favorites', [FavoriteController::class, 'store']);                     // إضافة إلى المفضلة
+        Route::get('favorites/check/{medicineId}', [FavoriteController::class, 'check']);   // التحقق من المفضلة
+        Route::delete('favorites/{medicineId}', [FavoriteController::class, 'destroy']);    // حذف من المفضلة
 
 //    Route::put('pharmacy/profile', [PharmacyController::class, 'updatePharmacyProfile']);
     Route::get('profile', [ProfileController::class, 'getProfile']);   // عرض أي بروفايل
@@ -102,7 +113,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('item/{id}',   [CartController::class,'remove']);
         Route::post('clear',         [CartController::class,'clear']);
     });
-
+    Route::get('/addresses', [AddressController::class, 'index']);
+    Route::post('/addresses', [AddressController::class, 'store']);
+    Route::put('/addresses/{id}', [AddressController::class, 'update']);
+    Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
     /*
     |------------------- Checkout & Orders -------------------
     */

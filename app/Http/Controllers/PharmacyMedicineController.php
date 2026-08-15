@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Models\Category;
 use App\Models\Medicine;
 use App\Models\pharmacy_medicine;
 use App\Models\Pharmacy;
@@ -12,9 +14,16 @@ class PharmacyMedicineController extends Controller
     //
     public function index(Pharmacy $pharmacy)
     {
+  //$categoris = Medicine::where('category_id',$medicine->category_id )->first();
         // الآن $pharmacy هو كائن Model فعلي
-        $medicines = $pharmacy->medicines()->withPivot('price', 'stock')->get();
 
+        $medicines = $pharmacy->medicines()->with('category')->get();
+
+        //ما بلزمني عنا ويث بايفوت لانها موجودة في العلاقة بين الصيدلية والدواء، لذلك يمكننا الوصول إليها مباشرة من خلال العلاقة.
+//كلهم غلط والحل بسيط فوق
+      //  $categoris = $pharmacy->with('medicines.category')->get();
+      //$categoris = $pharmacy->medicines()->with('category')->get();
+       // $categoris = $pharmacy->medicines()->where('category_id',$medicine->category_id )->first();
         return view('Pharmacy.Medicines.index', compact('pharmacy', 'medicines'));
     }
 

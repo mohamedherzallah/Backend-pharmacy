@@ -210,46 +210,46 @@
                     <!--end::Menu item-->
 
                     <!--begin:Menu item - Orders Management-->
-                    @php
-                        $ordersActive = request()->routeIs('orders.*');
-                    @endphp
-                    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ $ordersActive ? 'here show' : '' }}">
-                        <!--begin::Menu link-->
-                        <span class="menu-link">
-                            <span class="menu-icon">
-                                <i class="ki-duotone ki-basket fs-2">
-                                    <span class="path1"></span>
-                                    <span class="path2"></span>
-                                    <span class="path3"></span>
-                                    <span class="path4"></span>
-                                </i>
-                            </span>
-                            <span class="menu-title">إدارة الطلبات</span>
-                            <span class="menu-arrow"></span>
-                        </span>
-                        <!--end::Menu link-->
-                        <!--begin::Menu sub-->
-                        <div class="menu-sub menu-sub-accordion {{ $ordersActive ? 'show' : '' }}">
-                            <div class="menu-item">
-                                <a class="menu-link {{ request()->routeIs('orders.index') ? 'active' : '' }}" href="{{ route('orders.index') }}">
-                                    <span class="menu-bullet">
-                                        <span class="bullet bullet-dot"></span>
-                                    </span>
-                                    <span class="menu-title">جميع الطلبات</span>
-                                </a>
-                            </div>
+{{--                    @php--}}
+{{--                        $ordersActive = request()->routeIs('orders.*');--}}
+{{--                    @endphp--}}
+{{--                    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ $ordersActive ? 'here show' : '' }}">--}}
+{{--                        <!--begin::Menu link-->--}}
+{{--                        <span class="menu-link">--}}
+{{--                            <span class="menu-icon">--}}
+{{--                                <i class="ki-duotone ki-basket fs-2">--}}
+{{--                                    <span class="path1"></span>--}}
+{{--                                    <span class="path2"></span>--}}
+{{--                                    <span class="path3"></span>--}}
+{{--                                    <span class="path4"></span>--}}
+{{--                                </i>--}}
+{{--                            </span>--}}
+{{--                            <span class="menu-title">إدارة الطلبات</span>--}}
+{{--                            <span class="menu-arrow"></span>--}}
+{{--                        </span>--}}
+{{--                        <!--end::Menu link-->--}}
+{{--                        <!--begin::Menu sub-->--}}
+{{--                        <div class="menu-sub menu-sub-accordion {{ $ordersActive ? 'show' : '' }}">--}}
+{{--                            <div class="menu-item">--}}
+{{--                                <a class="menu-link {{ request()->routeIs('orders.index') ? 'active' : '' }}" href="{{ route('orders.index') }}">--}}
+{{--                                    <span class="menu-bullet">--}}
+{{--                                        <span class="bullet bullet-dot"></span>--}}
+{{--                                    </span>--}}
+{{--                                    <span class="menu-title">جميع الطلبات</span>--}}
+{{--                                </a>--}}
+{{--                            </div>--}}
 
-                            <div class="menu-item">
-                                <a class="menu-link" href="#">
-                                    <span class="menu-bullet">
-                                        <span class="bullet bullet-dot"></span>
-                                    </span>
-                                    <span class="menu-title">الطلبات المعلقة</span>
-                                </a>
-                            </div>
-                        </div>
-                        <!--end::Menu sub-->
-                    </div>
+{{--                            <div class="menu-item">--}}
+{{--                                <a class="menu-link" href="#">--}}
+{{--                                    <span class="menu-bullet">--}}
+{{--                                        <span class="bullet bullet-dot"></span>--}}
+{{--                                    </span>--}}
+{{--                                    <span class="menu-title">الطلبات المعلقة</span>--}}
+{{--                                </a>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                        <!--end::Menu sub-->--}}
+{{--                    </div>--}}
                     <!--end::Menu item-->
 
                 </div>

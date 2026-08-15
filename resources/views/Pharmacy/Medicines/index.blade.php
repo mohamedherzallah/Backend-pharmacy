@@ -5127,6 +5127,7 @@ License: For each use you must have a valid license purchased only from above li
                                         <thead>
                                         <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
                                             <th>اسم الدواء</th>
+                                            <th>الصنف</th>
                                             <th>الكمية</th>
                                             <th>سعر الوحدة</th>
                                             <th>الإجراءات</th>
@@ -5136,6 +5137,11 @@ License: For each use you must have a valid license purchased only from above li
                                         @foreach($medicines as $medicine)
                                             <tr>
                                                 <td>{{ $medicine->name }}</td>
+                                                   <td>
+                                  {{ $medicine->category->name}}
+                                                     </td>
+
+
                                                 <td>{{ $medicine->pivot->stock }}</td>
                                                 <td>{{ $medicine->pivot->price }}</td>
                                                 <td>

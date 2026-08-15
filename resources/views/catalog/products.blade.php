@@ -5173,7 +5173,7 @@ License: For each use you must have a valid license purchased only from above li
                                                 </td>
                                                 <td>{{ $medicine->name }}</td>
                                                 <td class="text-end">{{ $medicine->category->name ?? 'N/A' }}</td>
-                                             \
+
                                                 <td class="text-end">
                                                     @if($medicine->is_active)
                                                         <span class="badge badge-light-success">Active</span>
