@@ -123,6 +123,19 @@ class CartController extends Controller
             ->where('pharmacy_id', $pm->pharmacy_id)
             ->first();
 
+        // Checkout already enforces stock correctly (with row locking), but
+        // this endpoint never checked it at all - a user could add far more
+        // than available and only find out at checkout. Check here too so
+        // the error surfaces immediately, with the actual quantity they'd
+        // be trying to buy (existing line quantity + this addition).
+        $requestedTotal = $request->quantity + ($item ? $item->quantity : 0);
+        if ($requestedTotal > $pm->stock) {
+            return response()->json([
+                'message' => 'Insufficient stock',
+                'available_stock' => $pm->stock,
+            ], 422);
+        }
+
         if ($item) {
             $item->increment('quantity', $request->quantity);
         } else {
@@ -147,6 +160,18 @@ class CartController extends Controller
         // تأكد أن العنصر ينتمي للمستخدم
         if ($item->cart->user_id !== $request->user()->id) {
             return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        // Same gap as add(): quantity could previously be set to anything,
+        // with no stock check until checkout.
+        $pm = \App\Models\pharmacy_medicine::where('pharmacy_id', $item->pharmacy_id)
+            ->where('medicine_id', $item->medicine_id)
+            ->first();
+        if ($pm && $request->quantity > $pm->stock) {
+            return response()->json([
+                'message' => 'Insufficient stock',
+                'available_stock' => $pm->stock,
+            ], 422);
         }
 
         $item->update(['quantity' => $request->quantity]);

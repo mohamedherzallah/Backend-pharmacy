@@ -125,16 +125,28 @@ class CheckoutController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            // رسائل خطأ أكثر وضوحاً
-            $message = 'Error creating order';
+            // Business-rule failures (insufficient stock, product no longer
+            // available) are normal, expected client-facing conditions -
+            // they were previously all returned as 500 (server error),
+            // which is misleading and prevents the frontend from
+            // distinguishing "you can't do that right now" from "something
+            // actually broke".
             if (str_contains($e->getMessage(), 'not available')) {
-                $message = 'Product no longer available';
-            } elseif (str_contains($e->getMessage(), 'Insufficient stock')) {
-                $message = 'Insufficient stock for some items';
+                return response()->json([
+                    'message' => 'Product no longer available',
+                    'error' => $e->getMessage(),
+                ], 422);
+            }
+
+            if (str_contains($e->getMessage(), 'Insufficient stock')) {
+                return response()->json([
+                    'message' => 'Insufficient stock for some items',
+                    'error' => $e->getMessage(),
+                ], 422);
             }
 
             return response()->json([
-                'message' => $message,
+                'message' => 'Error creating order',
                 'error' => $e->getMessage()
             ], 500);
         }

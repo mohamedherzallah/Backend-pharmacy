@@ -131,7 +131,48 @@ class MedicineController extends Controller
     public function show(string $id)
     {
         $medicine = Medicine::with('category')->findOrFail($id);
-        return new MedicineResource($medicine);
+
+        $pharmacies = $medicine->pharmacies()
+            ->where('pharmacies.is_approved', true)
+            ->where('pharmacy_medicines.stock', '>', 0)
+            ->select(
+                'pharmacies.id',
+                'pharmacies.pharmacy_name as name',
+                'pharmacies.address',
+                'pharmacies.logo'
+            )
+            ->withPivot('price', 'stock')
+            ->get()
+            ->map(function ($pharmacy) {
+                return [
+                    'id' => $pharmacy->id,
+                    'name' => $pharmacy->name,
+                    'address' => $pharmacy->address,
+                    'logo' => $pharmacy->logo,
+                    'price' => $pharmacy->pivot->price,
+                    'stock' => $pharmacy->pivot->stock,
+                    'is_available' => $pharmacy->pivot->stock > 0,
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $medicine->id,
+                'category_id' => $medicine->category_id,
+                'name' => $medicine->name,
+                'description' => $medicine->description,
+                'image' => $medicine->image,
+                'expiration_date' => $medicine->expiration_date,
+                'is_active' => $medicine->is_active,
+                'general_stock' => $medicine->general_stock,
+                'category' => $medicine->category ? [
+                    'id' => $medicine->category->id,
+                    'name' => $medicine->category->name,
+                ] : null,
+                'pharmacies' => $pharmacies,
+            ],
+        ]);
     }
     public function byPharmacy($pharmacyId)
     {

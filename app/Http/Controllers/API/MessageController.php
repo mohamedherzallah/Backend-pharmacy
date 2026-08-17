@@ -36,7 +36,15 @@ class MessageController extends Controller
     public function index($conversationId, Request $request)
     {
         $conv = Conversation::with('messages')->findOrFail($conversationId);
-        // authorization similar to store
+
+        // Was previously unimplemented (comment said "similar to store" but
+        // no check existed) - any authenticated user could read any other
+        // user's or pharmacy's conversation just by incrementing the ID.
+        $user = $request->user();
+        if ($conv->user_id !== $user->id && $conv->pharmacy_id !== optional($user->pharmacy)->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         return response()->json($conv->messages);
     }
 }

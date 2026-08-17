@@ -16,6 +16,7 @@ use App\Http\Controllers\API\{AddressController,
     MessageController,
     UserController,
     PaymentController,
+    PaymentCardController,
     ProfileController,
     FavoriteController};
 /*
@@ -66,14 +67,6 @@ Route::get('pharmacy/{id}', [PharmacyController::class,'show']);
 
 /*
 |--------------------------------------------------------------------------
-| Payment (Public)
-|--------------------------------------------------------------------------
-*/
-Route::post('payment/pay', [PaymentController::class, 'pay']);
-
-
-/*
-|--------------------------------------------------------------------------
 | Protected Routes (Require Sanctum Token)
 |--------------------------------------------------------------------------
 */
@@ -91,6 +84,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('profile/logo', [ProfileController::class, 'updatePharmacyLogo']
     )->name('pharmacy.profile.logo');
 
+    // ========== Payment Routes ==========
+    // Moved behind auth:sanctum (was public - any anonymous caller could
+    // pay/mark-as-paid any order_id).
+    Route::post('payment/pay', [PaymentController::class, 'pay']);
+
+    // ========== Payment Card Routes ==========
+    // PaymentCardController existed but had no routes registered at all,
+    // so every call from the frontend's paymentCardAPI (getCards, addCard,
+    // setDefault, deleteCard) 404'd and the "Payment Cards" page was
+    // entirely non-functional.
+    Route::prefix('payment-cards')->group(function () {
+        Route::get('/', [PaymentCardController::class, 'index']);
+        Route::post('/', [PaymentCardController::class, 'store']);
+        Route::post('{id}/set-default', [PaymentCardController::class, 'setDefault']);
+        Route::delete('{id}', [PaymentCardController::class, 'destroy']);
+    });
+
     /*
     |--------------------- Pharmacy Management ---------------------
     */
@@ -98,6 +108,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('medicines',  [PharmacyMedicineController::class,'index']);
         Route::post('medicines', [PharmacyMedicineController::class,'store']);
         Route::delete('medicines/{Id}', [PharmacyMedicineController::class,'destroy']);
+        // PharmacyController::stats() existed but had no route - the
+        // pharmacy dashboard had no way to fetch medicine/order counts.
+        Route::get('stats', [PharmacyController::class, 'stats']);
     });
 
 // (المفروض هيك )للمستخدمين (العملاء) - بدون تسجيل دخول

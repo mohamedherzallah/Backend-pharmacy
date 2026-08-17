@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Pharmacy;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {

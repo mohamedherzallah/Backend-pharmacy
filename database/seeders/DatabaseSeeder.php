@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
 //        ]);
 
         Pharmacy::factory()->create([
-           'name' => 'mohammad',
+           'pharmacy_name' => 'mohammad',
             'address' => 'hsd'
         ]);
     }

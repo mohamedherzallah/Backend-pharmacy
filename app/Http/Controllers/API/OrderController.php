@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Http\Resources\OrderResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -57,21 +58,62 @@ class OrderController extends Controller
     public function update(Request $request, $id)
     {
         $order = Order::findOrFail($id);
+        $user = $request->user();
 
+        // Only the owning pharmacy (or an admin) may change an order's status.
+        // Previously ANY authenticated user could update ANY order.
+        $isOwningPharmacy = $user->role === 'pharmacy' && $user->pharmacy && $order->pharmacy_id === $user->pharmacy->id;
+        if ($user->role !== 'admin' && !$isOwningPharmacy) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        // Must match the actual `orders.status` enum in the database.
+        // The previous list (pending,approved,cancelled,delivered) didn't
+        // match the migrated enum (pending,accepted,rejected,delivering,
+        // completed,cancelled), so a valid-looking request like
+        // {"status":"approved"} would pass validation here and then fail
+        // with a SQL error when saved.
         $request->validate([
-            'status' => 'required|in:pending,approved,cancelled,delivered'
+            'status' => 'required|in:pending,accepted,rejected,delivering,completed,cancelled'
         ]);
 
         $order->update(['status' => $request->status]);
 
-        return new OrderResource($order);
+        return new OrderResource($order->load('items.medicine'));
     }
 
-    // حذف طلب (حسب سياساتك)
-    public function destroy($id)
+    // إلغاء طلب (من قبل العميل صاحب الطلب، أو الصيدلية/الأدمن)
+    public function destroy(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
-        $order->delete();
-        return response()->json(['message' => 'Order deleted']);
+        $order = Order::with('items')->findOrFail($id);
+        $user = $request->user();
+
+        $isOwner = $user->role === 'user' && $order->user_id === $user->id;
+        $isOwningPharmacy = $user->role === 'pharmacy' && $user->pharmacy && $order->pharmacy_id === $user->pharmacy->id;
+        if ($user->role !== 'admin' && !$isOwner && !$isOwningPharmacy) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if (in_array($order->status, ['completed', 'delivering', 'cancelled'])) {
+            return response()->json([
+                'message' => "Order cannot be cancelled while status is '{$order->status}'"
+            ], 422);
+        }
+
+        // Cancelling restores the stock that checkout deducted, and keeps
+        // the order as a record instead of hard-deleting it (the previous
+        // implementation permanently deleted the row with no ownership
+        // check and without ever returning stock).
+        DB::transaction(function () use ($order) {
+            foreach ($order->items as $item) {
+                if ($item->pharmacy_medicine_id) {
+                    \App\Models\pharmacy_medicine::where('id', $item->pharmacy_medicine_id)
+                        ->increment('stock', $item->quantity);
+                }
+            }
+            $order->update(['status' => 'cancelled']);
+        });
+
+        return response()->json(['message' => 'Order cancelled', 'order' => new OrderResource($order->fresh('items.medicine'))]);
     }
 }

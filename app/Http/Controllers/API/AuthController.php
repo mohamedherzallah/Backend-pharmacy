@@ -23,14 +23,20 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|confirmed|min:6',
             'phone' => 'nullable|string',
-            'role' => 'required|in:user,pharmacy,admin'
         ]);
 
+        // SECURITY: role is intentionally NOT accepted from the request.
+        // Previously this endpoint accepted role=admin from any anonymous
+        // caller, letting anyone create an admin account. Public
+        // self-registration can only ever create a plain 'user' account;
+        // pharmacy accounts are created via the dedicated
+        // /auth/pharmacy/register endpoint, and admin accounts must be
+        // created some other way (seeder / trusted internal tooling).
         $user = User::create([
             'name' => $request->name,
             'email'=> $request->email,
             'phone'=> $request->phone,
-            'role'=> $request->role,
+            'role'=> 'user',
             'password' => Hash::make($request->password),
         ]);
 
@@ -45,7 +51,7 @@ class AuthController extends Controller
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => new UserResource($user),
             'token' => $token
         ], 201);
     }
@@ -86,7 +92,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Pharmacy registered successfully. Complete your profile.',
-            'user' => $user,
+            'user' => new UserResource($user),
             'pharmacy' => $pharmacy,
             'token' => $token,
         ], 201);
@@ -237,7 +243,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'تم تفعيل الحساب',
             'token' => $token,
-            'user' => $user
+            'user' => new UserResource($user)
         ]);
     }
 }
