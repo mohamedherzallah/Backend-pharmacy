@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PharmacyRequest;
 use App\Models\Pharmacy;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -40,20 +41,10 @@ class PharmacyController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(PharmacyRequest $request)
     {
         // 1️⃣ Validation واحد فقط
-        $request->validate([
-            'pharmacy_name' => 'required|string|max:255',
-            'address' => 'required|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'phone' => 'required|unique:users,phone',
-            'email' => 'nullable|email|unique:users,email',
-            'password' => 'required|min:6',
-            'license_image' => 'nullable|image|mimes:jpg,jpeg,png',
-            'logo' => 'nullable|image|mimes:jpg,jpeg,png',
-        ]);
+        $request->validated();
 
         // 2️⃣ إنشاء المستخدم
         $user = User::create([

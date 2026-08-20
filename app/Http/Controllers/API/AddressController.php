@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AddressRequest;
 use App\Models\Address;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,20 +27,9 @@ class AddressController extends Controller
     /**
      * إضافة عنوان جديد
      */
-    public function store(Request $request)
+    public function store(AddressRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'title' => 'nullable|string|max:50',
-            'area' => 'required|string|max:100',
-            'street' => 'required|string|max:100',
-            'building_number' => 'nullable|string|max:20',
-            'floor' => 'nullable|string|max:20',
-            'apartment' => 'nullable|string|max:20',
-            'additional_info' => 'nullable|string|max:255',
-            'is_default' => 'boolean',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric'
-        ]);
+        $validator = $request->validated();
 
         if ($validator->fails()) {
             return response()->json([
@@ -55,7 +45,7 @@ class AddressController extends Controller
             $user->addresses()->update(['is_default' => false]);
         }
 
-        $address = $user->addresses()->create($validator->validated());
+        $address = $user->addresses()->create($validator);
 
         return response()->json([
             'success' => true,
